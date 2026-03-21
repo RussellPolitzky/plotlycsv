@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+vignettes/*.html
+vignettes/*.pdf
+tests/testthat/*.html
+tests/testthat/tmp*
+tmp/

@@ -1,0 +1,21 @@
+This is the skeleton of an R package which allows the user to add CSV data download as 
+a button to a given plotly chart in R.  In most cases, the charts will be generated
+from ggplot output using the ggplotly() function in R.
+
+* Please add comprehensive unit testing to this project to ensure that
+the required button is indeed added to plotly charts to which this 
+decoartor is applied and
+* that the CSV output data matches the input data.
+
+* Please ensure that this package is upto CRAN standards.
+
+* Please check that the export button is actually present in 
+the plotly output.
+
+* Please write a comprehensive vignette for this package.
+
+
+
+
+
+

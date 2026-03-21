@@ -1,0 +1,27 @@
+Package: plotlycsv
+Type: Package
+Title: Export Plotly Trace Data to CSV in Static HTML (Quarto/R Markdown)
+Version: 0.1.0
+Authors@R: c(
+    person(given = "Russell", family = "Politzky", role = c("aut", "cre"),
+           email = "russell.politzky@firstrand.co.za")
+    )
+Description: Adds a custom Plotly modebar button to download the data currently
+    rendered in a plotly htmlwidget (including ggplotly output) as a CSV file.
+    Designed for static HTML outputs such as Quarto and R Markdown (no Shiny server required).
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+VignetteBuilder: knitr
+Imports:
+    htmlwidgets
+Suggests:
+    plotly,
+    ggplot2,
+    magrittr,
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3
