@@ -76,6 +76,25 @@ ggplotly(p) %>%
   )
 ```
 
+## Global Usage (Auto-Decorator)
+
+If you have many Plots in a single document (e.g., a long report), you can use `use_plotly_csv()` in your setup chunk to automatically add the export button to **every** Plotly chart in the document.
+
+```r
+# In your setup chunk:
+library(plotlycsv)
+use_plotly_csv()
+```
+
+This function injects a small JavaScript observer that watches for any Plotly widgets being rendered on the page and automatically decorates them. This works even for plots inside tabsets or lazily-rendered components in Quarto.
+
+---
+
+### Comparison with Manual Decoration
+
+*   **`add_plotly_export_csv(widget, ...)`**: Best for fine-grained control (custom filenames or settings per plot).
+*   **`use_plotly_csv()`**: Best for convenience and consistency across a large document.
+
 ## How it Works
 
 The package injects a small JavaScript payload into the Plotly widget using `htmlwidgets::onRender()`. 

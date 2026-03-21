@@ -10,9 +10,7 @@ add_plotly_export_csv(
   visible_only = TRUE,
   include_text = TRUE,
   include_z = FALSE,
-  include_customdata = FALSE,
-  button_title = "Download data as CSV",
-  button_name = "exportCsv"
+  include_customdata = FALSE
 )
 }
 \arguments{
