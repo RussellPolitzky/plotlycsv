@@ -7,6 +7,8 @@
 #' `add_plotly_export_csv()` for each individual plot.
 #'
 #' @param filename Default filename suggested (default: "plotly-data.csv").
+#' @param selected_only If `TRUE`, export only points currently selected on the chart.
+#' @param sep Character used as the field separator (default: `","`).
 #'
 #' @return An [htmltools::tagList] containing the JavaScript payload.
 #' @export
@@ -16,20 +18,23 @@
 #'   # In a Quarto or R Markdown setup chunk:
 #'   # use_plotly_csv()
 #' }
-use_plotly_csv <- function(filename = "plotly-data.csv") {
+use_plotly_csv <- function(filename = "plotly-data.csv", selected_only = FALSE, sep = ",") {
   js_str <- function(s) gsub("'", "\\\\'", s, fixed = TRUE)
   
   script <- sprintf(
     "(function() {
   var iconPath = 'M850 300L580 30h-430c-44 0-80 36-80 80v780c0 44 36 80 80 80h660c44 0 80-36 80-80v-550L850 300zM610 80l160 160h-160V80z M710 850h-560v-740h360v200c0 22 18 40 40 40h200v500H710z M610 450c0-11-9-20-20-20H310c-11 0-20 9-20 20s9 20 20 20h280c11 0 20-9 20-20z M610 570c0-11-9-20-20-20H310c-11 0-20 9-20 20s9 20 20 20h280c11 0 20-9 20-20z M510 690c0-11-9-20-20-20H310c-11 0-20 9-20 20s9 20 20 20h180c11 0 20-9 20-20z';
 
-  function csvEscape(v){
+  var global_sep = '%s';
+
+  function csvEscape(v, s_sep){
+    var delim = s_sep || ',';
     if (v === null || v === undefined) return '';
     var s = String(v);
-    if (/[\\\",\\n\\r]/.test(s)) return '\"' + s.replace(/\"/g, '\"\"') + '\"';
+    if (/[\\\",\\n\\r]/.test(s) || s.indexOf(delim) !== -1) return '\"' + s.replace(/\"/g, '\"\"') + '\"';
     return s;
   }
-  function toRow(arr){ return arr.map(csvEscape).join(','); }
+  function toRow(arr, s_sep){ return arr.map(function(x){ return csvEscape(x, s_sep); }).join(s_sep || ','); }
 
   function traceIsVisible(tr){
     if (!tr) return false;
@@ -40,9 +45,10 @@ use_plotly_csv <- function(filename = "plotly-data.csv") {
   }
 
   function tracesToCSV(gd, opts){
+    var sep = opts.sep || ',';
     var header = ['trace_index','trace_name','point_index','x','y'];
     if (opts.include_text) header.push('text');
-    var lines = [toRow(header)];
+    var lines = [toRow(header, sep)];
 
     (gd.data || []).forEach(function(tr, ti){
       if (opts.visible_only && !traceIsVisible(tr)) return;
@@ -50,11 +56,17 @@ use_plotly_csv <- function(filename = "plotly-data.csv") {
       var xs = Array.isArray(tr.x) ? tr.x : [];
       var ys = Array.isArray(tr.y) ? tr.y : [];
       var ts = Array.isArray(tr.text) ? tr.text : [];
+      
+      var selected = tr.selectedpoints;
+      var hasSelection = Array.isArray(selected) && selected.length > 0;
+
       var n = Math.max(xs.length, ys.length, ts.length);
       for (var i = 0; i < n; i++){
+        if (opts.selected_only && hasSelection && !selected.includes(i)) continue;
+
         var row = [ti, name, i, xs[i] ?? '', ys[i] ?? ''];
         if (opts.include_text) row.push(ts[i] ?? '');
-        lines.push(toRow(row));
+        lines.push(toRow(row, sep));
       }
     });
     return lines.join('\\n');
@@ -78,6 +90,8 @@ use_plotly_csv <- function(filename = "plotly-data.csv") {
     var opts = {
       visible_only: true,
       include_text: true,
+      selected_only: %s,
+      sep: global_sep,
       filename: '%s'
     };
 
@@ -103,6 +117,7 @@ use_plotly_csv <- function(filename = "plotly-data.csv") {
   }
 
   function init() {
+
     document.querySelectorAll('.js-plotly-plot').forEach(decoratePlot);
     var observer = new MutationObserver(function(mutations) {
       mutations.forEach(function(mutation) {
@@ -120,8 +135,11 @@ use_plotly_csv <- function(filename = "plotly-data.csv") {
   if (document.readyState === 'complete') init();
   else window.addEventListener('load', init);
 })();",
+    js_str(sep),
+    if (selected_only) "true" else "false",
     js_str(filename)
   )
 
   htmltools::tags$script(htmltools::HTML(script))
 }
+

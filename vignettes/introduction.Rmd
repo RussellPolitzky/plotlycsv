@@ -49,7 +49,7 @@ p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) +
   labs(title = "Car Data: Weight vs MPG")
 
 # Convert to plotly and add the export button
-p_plotly <- ggplotly(p) %>% 
+p_plotly <- ggplotly(p) |> 
   add_plotly_export_csv(filename = "mtcars_data.csv")
 
 # In a Quarto/RMarkdown doc, printing the object displays the chart with the button
@@ -69,7 +69,7 @@ p_plotly <- ggplotly(p) %>%
 ### Example: Custom Filename and Hidden Traces
 
 ```r
-ggplotly(p) %>% 
+ggplotly(p) |> 
   add_plotly_export_csv(
     filename = "custom_export.csv",
     visible_only = FALSE # Export all data, even if hidden in the legend

@@ -10,7 +10,9 @@ add_plotly_export_csv(
   visible_only = TRUE,
   include_text = TRUE,
   include_z = FALSE,
-  include_customdata = FALSE
+  include_customdata = FALSE,
+  selected_only = FALSE,
+  sep = ","
 )
 }
 \arguments{
@@ -18,17 +20,9 @@ add_plotly_export_csv(
 
 \item{filename}{Filename suggested to the browser for the downloaded CSV.}
 
-\item{visible_only}{If \code{TRUE}, export only traces currently visible (respects legend toggles).}
+\item{selected_only}{If \code{TRUE}, export only points currently selected on the chart.}
 
-\item{include_text}{If \code{TRUE}, include a \code{text} column when trace text is present.}
-
-\item{include_z}{If \code{TRUE}, include a \code{z} column when trace z is present.}
-
-\item{include_customdata}{If \code{TRUE}, include a \code{customdata} column when present.}
-
-\item{button_title}{Tooltip text shown on hover.}
-
-\item{button_name}{Internal button name (used to avoid duplicate buttons on re-render).}
+\item{sep}{Character used as the field separator (default: \code{","}).}
 }
 \value{
 The modified widget.
@@ -52,6 +46,6 @@ if (requireNamespace("ggplot2", quietly = TRUE) &&
 
   p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point()
   ggplotly(p) \%>\%
-    add_plotly_export_csv(filename = "mtcars.csv")
+    add_plotly_export_csv(filename = "mtcars.csv", selected_only = TRUE)
 }
 }

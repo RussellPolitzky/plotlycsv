@@ -18,7 +18,6 @@ Imports:
 Suggests:
     plotly,
     ggplot2,
-    magrittr,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown

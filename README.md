@@ -17,10 +17,9 @@ remotes::install_local("plotlycsv")
 ```r
 library(ggplot2)
 library(plotly)
-library(magrittr)
 
 p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point()
 
-ggplotly(p) %>%
-  decorate_plotly_export_csv(filename = "mtcars.csv")
+ggplotly(p) |>
+  add_plotly_export_csv(filename = "mtcars.csv")
 ```

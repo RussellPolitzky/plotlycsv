@@ -4,10 +4,14 @@
 \alias{use_plotly_csv}
 \title{Add a global auto-decorator for all Plotly charts in a document}
 \usage{
-use_plotly_csv(filename = "plotly-data.csv")
+use_plotly_csv(filename = "plotly-data.csv", selected_only = FALSE, sep = ",")
 }
 \arguments{
 \item{filename}{Default filename suggested (default: "plotly-data.csv").}
+
+\item{selected_only}{If \code{TRUE}, export only points currently selected on the chart.}
+
+\item{sep}{Character used as the field separator (default: \code{","}).}
 }
 \value{
 An \link[htmltools:tagList]{htmltools::tagList} containing the JavaScript payload.

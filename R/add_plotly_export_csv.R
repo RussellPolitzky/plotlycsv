@@ -9,27 +9,22 @@
 #'
 #' @param widget A plotly htmlwidget (e.g. from [plotly::ggplotly()] or [plotly::plot_ly()]).
 #' @param filename Filename suggested to the browser for the downloaded CSV.
-#' @param visible_only If `TRUE`, export only traces currently visible (respects legend toggles).
-#' @param include_text If `TRUE`, include a `text` column when trace text is present.
-#' @param include_z If `TRUE`, include a `z` column when trace z is present.
-#' @param include_customdata If `TRUE`, include a `customdata` column when present.
-#' @param button_title Tooltip text shown on hover.
-#' @param button_name Internal button name (used to avoid duplicate buttons on re-render).
+#' @param selected_only If `TRUE`, export only points currently selected on the chart.
+#' @param sep Character used as the field separator (default: `","`).
 #'
 #' @return The modified widget.
 #' @export
 #'
 #' @examples
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
-#'     requireNamespace("plotly", quietly = TRUE) &&
-#'     requireNamespace("magrittr", quietly = TRUE)) {
+#'     requireNamespace("plotly", quietly = TRUE)) {
 #'   library(ggplot2)
+
 #'   library(plotly)
-#'   library(magrittr)
 #'
 #'   p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point()
-#'   ggplotly(p) %>%
-#'     add_plotly_export_csv(filename = "mtcars.csv")
+#'   ggplotly(p) |>
+#'     add_plotly_export_csv(filename = "mtcars.csv", selected_only = TRUE)
 #' }
 add_plotly_export_csv <- function(
   widget,
@@ -37,9 +32,12 @@ add_plotly_export_csv <- function(
   visible_only = TRUE,
   include_text = TRUE,
   include_z = FALSE,
-  include_customdata = FALSE
+  include_customdata = FALSE,
+  selected_only = FALSE,
+  sep = ","
 ) {
   stopifnot(inherits(widget, "htmlwidget"))
+
 
   # Register a custom button in the Plotly modebar
   # Using a standard "disk" icon SVG path
@@ -80,23 +78,22 @@ add_plotly_export_csv <- function(
   }
   if (!gd || !window.Plotly) return;
 
+  var sep = '%s';
+
   function csvEscape(v){
     if (v === null || v === undefined) return '';
     var s = String(v);
-    if (/[\\\",\\n\\r]/.test(s)) {
+    if (/[\\\",\\n\\r]/.test(s) || s.indexOf(sep) !== -1) {
       return '\"' + s.replace(/\"/g, '\"\"') + '\"';
     }
     return s;
   }
-  function toRow(arr){ return arr.map(csvEscape).join(','); }
+  function toRow(arr){ return arr.map(csvEscape).join(sep); }
 
   function traceIsVisible(tr){
     if (!tr) return false;
-    // For ggplotly, we want to include traces that are part of the main plot
-    // even if they don't have an explicit 'visible' property.
     if (tr.visible === false) return false;
     if (tr.visible === 'legendonly') return false;
-    // Also skip traces that have no data
     if ((!tr.x || !tr.x.length) && (!tr.y || !tr.y.length)) return false;
     return true;
   }
@@ -114,9 +111,14 @@ add_plotly_export_csv <- function(
       var zs = Array.isArray(tr.z) ? tr.z : [];
       var ts = Array.isArray(tr.text) ? tr.text : [];
       var cd = Array.isArray(tr.customdata) ? tr.customdata : [];
+      
+      var selected = tr.selectedpoints;
+      var hasSelection = Array.isArray(selected) && selected.length > 0;
 
       var n = Math.max(xs.length, ys.length%s%s%s);
       for (var i = 0; i < n; i++){
+        if (%s && hasSelection && !selected.includes(i)) continue;
+
         var xi = xs[i] !== undefined && xs[i] !== null ? xs[i] : '';
         var yi = ys[i] !== undefined && ys[i] !== null ? ys[i] : '';
         var row = [ti, name, i, xi, yi%s%s%s];
@@ -126,7 +128,6 @@ add_plotly_export_csv <- function(
 
     return lines.join('\\n');
   }
-
 
   function downloadText(filename, text){
     var blob = new Blob([text], {type: 'text/csv;charset=utf-8'});
@@ -140,10 +141,11 @@ add_plotly_export_csv <- function(
     URL.revokeObjectURL(url);
   }
 
-  gd._tracesToCSV = tracesToCSV; // expose for testing and button click handler
+  gd._tracesToCSV = tracesToCSV;
   gd._downloadText = downloadText;
   gd._csvFilename = '%s';
 }",
+    js_str(sep),
     if (include_z) ", 'z'" else "",
     if (include_text) ", 'text'" else "",
     if (include_customdata) ", 'customdata'" else "",
@@ -151,6 +153,7 @@ add_plotly_export_csv <- function(
     if (include_z) ", zs.length" else "",
     if (include_text) ", ts.length" else "",
     if (include_customdata) ", cd.length" else "",
+    if (selected_only) "true" else "false",
     if (include_z) ",\n          zs[i] !== undefined && zs[i] !== null ? zs[i] : ''" else "",
     if (include_text) ",\n          ts[i] !== undefined && ts[i] !== null ? ts[i] : ''" else "",
     if (include_customdata) ",\n          cd[i] !== undefined && cd[i] !== null ? cd[i] : ''" else "",
@@ -159,4 +162,3 @@ add_plotly_export_csv <- function(
 
   htmlwidgets::onRender(widget, js)
 }
-
