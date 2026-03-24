@@ -14,7 +14,11 @@ the plotly output.
 
 * Please write a comprehensive vignette for this package.
 
+* Please add a test using a quarto document to ensure that the 
+package works as expected in a quarto document.  Please ensure
+to test the global decorator as well as the per-plot decorator.
 
+    
 
 
 
