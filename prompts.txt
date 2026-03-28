@@ -18,7 +18,11 @@ the plotly output.
 package works as expected in a quarto document.  Please ensure
 to test the global decorator as well as the per-plot decorator.
 
-    
+* When using the global decorator, the default file name should
+be taken from the figure or chunk name associated with the 
+plotly imgae, by default.  If no such name is found, then
+the default file name should be "plotly-data.csv".
+
 
 
 

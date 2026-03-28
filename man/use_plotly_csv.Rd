@@ -4,10 +4,16 @@
 \alias{use_plotly_csv}
 \title{Add a global auto-decorator for all Plotly charts in a document}
 \usage{
-use_plotly_csv(filename = "plotly-data.csv", selected_only = FALSE, sep = ",")
+use_plotly_csv(filename = NULL, selected_only = FALSE, sep = ",")
 }
 \arguments{
-\item{filename}{Default filename suggested (default: "plotly-data.csv").}
+\item{filename}{Default filename suggested for the download. When \code{NULL}
+(the default), each plot derives its filename from the \code{id} of the nearest
+ancestor \verb{<div>} that carries one — which Quarto / knitr sets to the chunk
+or figure label — with \code{.csv} appended. If a figure label exists (e.g. \code{fig-my-plot}),
+it is strictly preferred over the chunk label. If no such ancestor is found,
+the name falls back to \code{"plotly-data.csv"}. Supply an explicit string to use
+the same filename for every plot in the document.}
 
 \item{selected_only}{If \code{TRUE}, export only points currently selected on the chart.}
 
@@ -26,6 +32,7 @@ documents where you want consistent export functionality without calling
 \examples{
 if (requireNamespace("htmltools", quietly = TRUE)) {
   # In a Quarto or R Markdown setup chunk:
-  # use_plotly_csv()
+  # use_plotly_csv()           # auto filename from chunk label
+  # use_plotly_csv(filename = "report-data.csv")  # fixed filename
 }
 }

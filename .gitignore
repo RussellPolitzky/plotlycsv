@@ -8,3 +8,6 @@ vignettes/*.pdf
 tests/testthat/*.html
 tests/testthat/tmp*
 tmp/
+tests_output.txt
+tests/quarto/*.html
+tests/quarto/*.md

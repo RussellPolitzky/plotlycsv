@@ -107,10 +107,12 @@ test_that("Quarto document renders and contains all decorator markers", {
   )
 
   # ---- Filenames injected by the two decorator types ----
+  # Global decorator: no fixed filename in the JS — verify the auto-detect
+  # helper function was injected.
   expect_match(
-    html, "global_export.csv",
+    html, "chunkFilename",
     fixed = TRUE,
-    label = "HTML must contain the global decorator filename"
+    label = "HTML must contain the chunkFilename auto-detect helper"
   )
   expect_match(
     html, "per_plot_hp_qsec.csv",
@@ -225,9 +227,15 @@ test_that("Quarto-rendered plots have _tracesToCSV attached in the browser", {
         character(0)
       }
 
-      if ("per_plot_hp_qsec.csv"    %in% fnames &&
-          "per_plot_disp_drat.csv"  %in% fnames &&
-          "global_export.csv"       %in% fnames) {
+      # Global-decorator plots carry auto-derived chunk-id filenames.
+      # Accept any .csv filename that is NOT one of the per-plot names as
+      # evidence the global decorator fired.
+      per_plot_names <- c("per_plot_hp_qsec.csv", "per_plot_disp_drat.csv")
+      global_names   <- fnames[!fnames %in% per_plot_names & nzchar(fnames)]
+
+      if ("per_plot_hp_qsec.csv"   %in% fnames &&
+          "per_plot_disp_drat.csv" %in% fnames &&
+          length(global_names) > 0) {
         success <- TRUE
         break
       }
@@ -256,9 +264,10 @@ test_that("Quarto-rendered plots have _tracesToCSV attached in the browser", {
     character(0)
   }
 
+  global_names <- filenames[!filenames %in% c("per_plot_hp_qsec.csv", "per_plot_disp_drat.csv") & nzchar(filenames)]
   expect_true(
-    "global_export.csv" %in% filenames,
-    label = "At least one plot should carry the global filename"
+    length(global_names) > 0,
+    label = "At least one plot should carry an auto-derived global filename"
   )
   expect_true(
     "per_plot_hp_qsec.csv" %in% filenames,

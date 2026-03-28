@@ -38,14 +38,12 @@ browser at render time, i.e. what the plotly widget is drawing.
 }
 \examples{
 if (requireNamespace("ggplot2", quietly = TRUE) &&
-    requireNamespace("plotly", quietly = TRUE) &&
-    requireNamespace("magrittr", quietly = TRUE)) {
+    requireNamespace("plotly", quietly = TRUE)) {
   library(ggplot2)
   library(plotly)
-  library(magrittr)
 
   p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point()
-  ggplotly(p) \%>\%
+  ggplotly(p) |>
     add_plotly_export_csv(filename = "mtcars.csv", selected_only = TRUE)
 }
 }

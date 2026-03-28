@@ -40,8 +40,9 @@ chunk and automatically attaches a "Download CSV" modebar button to
 **every** Plotly widget on the page.  No per-plot code is required.
 
 ```{r global-decorator}
-# Call use_plotly_csv() once — all plots below will pick it up automatically.
-use_plotly_csv(filename = "global_export.csv")
+# Call use_plotly_csv() once — all plots below will pick up the filename
+# automatically from their chunk label (e.g. "global-plot-1.csv").
+use_plotly_csv()
 ```
 
 ### Plot 1 — `plot_ly()` scatter (decorated by global hook)
@@ -64,7 +65,9 @@ plot_ly(
 
 ### Plot 2 — `ggplotly()` bar chart (decorated by global hook)
 
-```{r global-plot-2}
+```{r}
+#| label: fig-global-plot-2
+#| fig-cap: "Average MPG by Cylinder Count"
 p <- ggplot(
   aggregate(mpg ~ cyl, data = mtcars, FUN = mean),
   aes(x = factor(cyl), y = mpg, fill = factor(cyl))
@@ -135,7 +138,10 @@ The section below emits sentinel strings into the HTML that the automated
 #| results: asis
 #| echo: false
 
-cat("<!-- PLOTLYCSV_GLOBAL_OK: global_export.csv -->\n")
-cat("<!-- PLOTLYCSV_PER_PLOT_OK: per_plot_hp_qsec.csv -->\n")
-cat("<!-- PLOTLYCSV_PER_PLOT_2_OK: per_plot_disp_drat.csv -->\n")
+cat("<!-- PLOTLYCSV_GLOBAL_OK: auto-filename -->
+")
+cat("<!-- PLOTLYCSV_PER_PLOT_OK: per_plot_hp_qsec.csv -->
+")
+cat("<!-- PLOTLYCSV_PER_PLOT_2_OK: per_plot_disp_drat.csv -->
+")
 ```
