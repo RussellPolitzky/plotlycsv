@@ -1,0 +1,141 @@
+---
+title: "plotlycsv Integration Test"
+subtitle: "Verifying global and per-plot CSV export decorators"
+author: "plotlycsv test suite"
+date: today
+format:
+  html:
+    embed-resources: true
+    toc: true
+    toc-depth: 2
+    theme: flatly
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+```{r setup}
+#| include: false
+
+# Load the package under test.
+# When run via the testthat suite, the package root is passed in via the
+# PLOTLYCSV_PKG_PATH environment variable so that pkgload::load_all() can
+# find it regardless of the working directory Quarto uses.
+pkg_path <- Sys.getenv("PLOTLYCSV_PKG_PATH", unset = NA)
+if (!is.na(pkg_path) && nzchar(pkg_path)) {
+  pkgload::load_all(pkg_path, quiet = TRUE)
+} else {
+  library(plotlycsv)
+}
+
+library(plotly)
+library(ggplot2)
+```
+
+## Global Decorator
+
+The global decorator (`use_plotly_csv()`) is called **once** in a setup
+chunk and automatically attaches a "Download CSV" modebar button to
+**every** Plotly widget on the page.  No per-plot code is required.
+
+```{r global-decorator}
+# Call use_plotly_csv() once — all plots below will pick it up automatically.
+use_plotly_csv(filename = "global_export.csv")
+```
+
+### Plot 1 — `plot_ly()` scatter (decorated by global hook)
+
+```{r global-plot-1}
+plot_ly(
+  mtcars,
+  x     = ~wt,
+  y     = ~mpg,
+  color = ~factor(cyl),
+  type  = "scatter",
+  mode  = "markers"
+) |>
+  layout(
+    title  = "Weight vs MPG (global decorator)",
+    xaxis  = list(title = "Weight (1000 lbs)"),
+    yaxis  = list(title = "Miles per Gallon")
+  )
+```
+
+### Plot 2 — `ggplotly()` bar chart (decorated by global hook)
+
+```{r global-plot-2}
+p <- ggplot(
+  aggregate(mpg ~ cyl, data = mtcars, FUN = mean),
+  aes(x = factor(cyl), y = mpg, fill = factor(cyl))
+) +
+  geom_col(show.legend = FALSE) +
+  labs(
+    title = "Average MPG by Cylinder Count",
+    x     = "Cylinders",
+    y     = "Mean MPG"
+  )
+
+ggplotly(p)
+```
+
+---
+
+## Per-Plot Decorator
+
+The per-plot decorator (`add_plotly_export_csv()`) is piped directly onto
+an individual widget. It allows a **custom filename** and fine-grained
+control over what is exported.
+
+### Plot 3 — `plot_ly()` with per-plot decorator
+
+```{r per-plot-1}
+plot_ly(
+  mtcars,
+  x    = ~hp,
+  y    = ~qsec,
+  type = "scatter",
+  mode = "markers",
+  marker = list(color = "#e15759", size = 8)
+) |>
+  layout(
+    title = "Horsepower vs Quarter-Mile Time (per-plot decorator)",
+    xaxis = list(title = "Horsepower"),
+    yaxis = list(title = "Quarter-Mile Time (s)")
+  ) |>
+  add_plotly_export_csv(filename = "per_plot_hp_qsec.csv")
+```
+
+### Plot 4 — `ggplotly()` with per-plot decorator and `selected_only`
+
+```{r per-plot-2}
+p2 <- ggplot(mtcars, aes(disp, drat, colour = factor(am))) +
+  geom_point(size = 3) +
+  labs(
+    title  = "Displacement vs Rear-Axle Ratio",
+    colour = "Transmission (0 = auto)"
+  )
+
+ggplotly(p2) |>
+  add_plotly_export_csv(
+    filename      = "per_plot_disp_drat.csv",
+    selected_only = FALSE,   # export all points regardless of selection state
+    include_text  = TRUE
+  )
+```
+
+---
+
+## Verification markers
+
+The section below emits sentinel strings into the HTML that the automated
+`testthat` integration test uses to confirm the decorators were applied.
+
+```{r verification-markers}
+#| results: asis
+#| echo: false
+
+cat("<!-- PLOTLYCSV_GLOBAL_OK: global_export.csv -->\n")
+cat("<!-- PLOTLYCSV_PER_PLOT_OK: per_plot_hp_qsec.csv -->\n")
+cat("<!-- PLOTLYCSV_PER_PLOT_2_OK: per_plot_disp_drat.csv -->\n")
+```
