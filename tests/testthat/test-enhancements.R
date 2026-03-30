@@ -6,7 +6,7 @@ test_that("add_plotly_export_csv() respects selected_only", {
         add_plotly_export_csv(selected_only = TRUE)
 
     js <- p$jsHooks$render[[1]]$code
-    expect_match(js, "selected_only: true", fixed = TRUE)
+    expect_match(js, "if (true && hasSelection && !selected.includes(i)) continue;", fixed = TRUE)
 })
 
 test_that("add_plotly_export_csv() respects custom delimiter", {

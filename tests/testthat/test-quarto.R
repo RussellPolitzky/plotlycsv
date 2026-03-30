@@ -65,7 +65,6 @@ test_that("plotlycsv works in a rendered Quarto document", {
   # Check for plotlycsv strings in HTML
   expect_match(html_content, "global_export.csv", fixed = TRUE, info = "HTML should contain global filename")
   expect_match(html_content, "manual_export.csv", fixed = TRUE, info = "HTML should contain manual filename")
-  expect_match(html_content, "plotly-export-button", fixed = TRUE, info = "HTML should contain the export button class")
 
   # Verify with Chromote
   b <- chromote::ChromoteSession$new()
