@@ -23,7 +23,9 @@ be taken from the figure or chunk name associated with the
 plotly imgae, by default.  If no such name is found, then
 the default file name should be "plotly-data.csv".
 
-
+* Please update the icon used for CSV download.  Please change 
+it to an arrow pointing downwards with a horizontal line
+underneath it.  The icon should be black and white.
 
 
 

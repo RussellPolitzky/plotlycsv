@@ -11,3 +11,5 @@ tmp/
 tests_output.txt
 tests/quarto/*.html
 tests/quarto/*.md
+
+/.quarto/

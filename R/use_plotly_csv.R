@@ -38,7 +38,7 @@ use_plotly_csv <- function(filename = NULL, selected_only = FALSE, sep = ",") {
     var delim = s_sep || ',';
     if (v === null || v === undefined) return '';
     var s = String(v);
-    if (/[\\\",\\n\\r]/.test(s) || s.indexOf(delim) !== -1) return '\"' + s.replace(/\"/g, '\"\"') + '\"';
+    if (/[\\\\\\\",\\\\n\\\\r]/.test(s) || s.indexOf(delim) !== -1) return '\\\"' + s.replace(/\\\"/g, '\\\"\\\"') + '\\\"';
     return s;
   }
   function toRow(arr, s_sep){ return arr.map(function(x){ return csvEscape(x, s_sep); }).join(s_sep || ','); }
@@ -71,12 +71,17 @@ use_plotly_csv <- function(filename = NULL, selected_only = FALSE, sep = ",") {
       for (var i = 0; i < n; i++){
         if (opts.selected_only && hasSelection && !selected.includes(i)) continue;
 
-        var row = [ti, name, i, xs[i] ?? '', ys[i] ?? ''];
-        if (opts.include_text) row.push(ts[i] ?? '');
+        var xi = xs[i] !== undefined && xs[i] !== null ? xs[i] : '';
+        var yi = ys[i] !== undefined && ys[i] !== null ? ys[i] : '';
+        var row = [ti, name, i, xi, yi];
+        if (opts.include_text) {
+          var t_val = ts[i] !== undefined && ts[i] !== null ? ts[i] : '';
+          row.push(t_val);
+        }
         lines.push(toRow(row, sep));
       }
     });
-    return lines.join('\\n');
+    return lines.join('\\\\n');
   }
 
   function downloadText(filename, text){
@@ -95,9 +100,6 @@ use_plotly_csv <- function(filename = NULL, selected_only = FALSE, sep = ",") {
 
   function chunkFilename(gd) {
     if (global_filename !== null) return global_filename;
-    // Walk up the DOM to find ancestor <div> elements with an id.
-    // Quarto / knitr sets that id to the chunk or figure label.
-    // We prefer figure labels (which typically start with 'fig-') over chunk labels.
     var el = gd.parentElement;
     var fallbackId = null;
     
@@ -117,10 +119,50 @@ use_plotly_csv <- function(filename = NULL, selected_only = FALSE, sep = ",") {
     return 'plotly-data.csv';
   }
 
-  function decoratePlot(gd) {
-    if (!gd || gd._tracesToCSV || !window.Plotly) return;
+  var csvButton = {
+    name: 'Download CSV Auto',
+    title: 'Download data as CSV',
+    icon: { width: 1000, ascent: 850, descent: -150, path: iconPath },
+    click: function(gd) { if (gd._downloadText) gd._downloadText(gd._csvFilename, gd._tracesToCSV(gd)); }
+  };
 
-    var filename = chunkFilename(gd);
+  function hasCsvButton(buttons) {
+    return (buttons || []).some(function(b) {
+      if (!b) return false;
+      var name = (typeof b === 'string' ? b : (b.name || '')).toString().toUpperCase();
+      var title = (typeof b === 'object' ? (b.title || '') : '').toString().toUpperCase();
+      return name.indexOf('CSV') !== -1 || title.indexOf('CSV') !== -1;
+    });
+  }
+
+  // Inject our button into the config/figure BEFORE Plotly renders the plot.
+  // This is the only reliable way — modifying config after render (via Plotly.react)
+  // does not trigger a modebar rebuild because Plotly diffs against the same object.
+  function injectButton(args) {
+    if (!args || args.length < 2) return;
+    var dataArg = args[1];
+    if (Array.isArray(dataArg)) {
+      // Separate-args form: newPlot(gd, data, layout, config)
+      var cfg = args[3];
+      if (!cfg) { cfg = {}; args[3] = cfg; }
+      if (!hasCsvButton(cfg.modeBarButtonsToAdd)) {
+        cfg.modeBarButtonsToAdd = (cfg.modeBarButtonsToAdd || []).concat([csvButton]);
+      }
+    } else if (dataArg && typeof dataArg === 'object') {
+      // Figure-object form: newPlot(gd, figure)
+      if (!dataArg.config) dataArg.config = {};
+      if (!hasCsvButton(dataArg.config.modeBarButtonsToAdd)) {
+        dataArg.config.modeBarButtonsToAdd = (dataArg.config.modeBarButtonsToAdd || []).concat([csvButton]);
+      }
+    }
+  }
+
+  // After a plot is rendered, attach the helper functions to gd.
+  function setupHelpers(gd) {
+    if (!gd || gd._tracesToCSV) return;
+    if (!gd.classList || !gd.classList.contains('js-plotly-plot')) return;
+    if (!gd.data) return;
+
     var opts = {
       visible_only: true,
       include_text: true,
@@ -128,45 +170,70 @@ use_plotly_csv <- function(filename = NULL, selected_only = FALSE, sep = ",") {
       sep: global_sep
     };
 
-    gd._tracesToCSV = function(gd) { return tracesToCSV(gd, opts); };
+    gd._tracesToCSV  = function(gd) { return tracesToCSV(gd, opts); };
     gd._downloadText = downloadText;
-    gd._csvFilename  = filename;
+    gd._csvFilename  = chunkFilename(gd);
+  }
 
-    var button = {
-      name: 'Download CSV Auto',
-      title: 'Download data as CSV (Auto-decorator)',
-      icon: { width: 1000, ascent: 850, descent: -150, path: iconPath },
-      click: function(gd) { downloadText(gd._csvFilename, gd._tracesToCSV(gd)); }
+  function hookPlotly() {
+    if (!window.Plotly || window.Plotly._csvHooked) return;
+    window.Plotly._csvHooked = true;
+
+    var wrap = function(orig) {
+      if (typeof orig !== 'function') return orig;
+      return function() {
+        var args = Array.prototype.slice.call(arguments);
+        var gd   = args[0];
+        injectButton(args);
+        var res = orig.apply(this, args);
+        if (res && typeof res.then === 'function') {
+          res.then(function(new_gd) { setupHelpers(new_gd || gd); });
+        } else {
+          setupHelpers(gd);
+        }
+        return res;
+      };
     };
 
-    // Check if a similar button already exists
-    var hasButton = false;
-    try {
-      var modebar = gd.querySelector('.modebar-container');
-      if (modebar && modebar.textContent.includes('CSV')) hasButton = true;
-    } catch(e) {}
-
-    if (!hasButton) Plotly.addButtons(gd, button);
+    window.Plotly.newPlot = wrap(window.Plotly.newPlot);
+    window.Plotly.react  = wrap(window.Plotly.react);
   }
 
   function init() {
-
-    document.querySelectorAll('.js-plotly-plot').forEach(decoratePlot);
+    hookPlotly();
+    document.querySelectorAll('.js-plotly-plot').forEach(setupHelpers);
     var observer = new MutationObserver(function(mutations) {
+      hookPlotly();
       mutations.forEach(function(mutation) {
         mutation.addedNodes.forEach(function(node) {
           if (node.nodeType === 1) {
-            if (node.classList && node.classList.contains('js-plotly-plot')) decoratePlot(node);
-            node.querySelectorAll('.js-plotly-plot').forEach(decoratePlot);
+            if (node.classList && node.classList.contains('js-plotly-plot')) setupHelpers(node);
+            node.querySelectorAll('.js-plotly-plot').forEach(setupHelpers);
           }
         });
+        if (mutation.target && mutation.target.nodeType === 1 && mutation.target.classList.contains('js-plotly-plot')) {
+          setupHelpers(mutation.target);
+        }
       });
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  if (document.readyState === 'complete') init();
-  else window.addEventListener('load', init);
+  // Hook immediately - Plotly.js is already loaded if this script appears after it in the document
+  hookPlotly();
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') init();
+  else document.addEventListener('DOMContentLoaded', init);
+
+  // Safety: check periodically for first 10s if Plotly is loaded late
+  var checkCount = 0;
+  var interval = setInterval(function() {
+    hookPlotly();
+    if (window.Plotly) {
+        document.querySelectorAll('.js-plotly-plot').forEach(setupHelpers);
+    }
+    if (++checkCount > 20) clearInterval(interval);
+  }, 500);
 })();",
     js_str(sep),
     if (is.null(filename)) "null" else paste0("'", js_str(filename), "'"),
@@ -175,4 +242,3 @@ use_plotly_csv <- function(filename = NULL, selected_only = FALSE, sep = ",") {
 
   htmltools::tags$script(htmltools::HTML(script))
 }
-
