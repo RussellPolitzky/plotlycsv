@@ -132,9 +132,9 @@ test_that("Quarto document renders and contains all decorator markers", {
     label = "Global decorator JS must contain MutationObserver"
   )
   expect_match(
-    html, "decoratePlot",
+    html, "injectButton",
     fixed = TRUE,
-    label = "Global decorator JS must contain decoratePlot"
+    label = "Global decorator JS must contain injectButton (pre-render injection)"
   )
 
   # ---- Core JS patterns from add_plotly_export_csv() (per-plot decorator) ----
