@@ -13,3 +13,4 @@ tests/quarto/*.html
 tests/quarto/*.md
 
 /.quarto/
+.quota
