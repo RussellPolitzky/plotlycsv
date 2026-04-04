@@ -14,10 +14,17 @@ test_that("plotlycsv works in a rendered Quarto document", {
   dir.create(tmp_dir, showWarnings = FALSE)
   qmd_file <- file.path(tmp_dir, "test.qmd")
   
-  # We'll use pkgload::load_all to load the local package in the Quarto session
-  # We need to find the project root relative to this test file
+  # Pass the package source path via env var so the Quarto session can load it.
+  # Falls back to library(plotlycsv) when not in a source-package context
+  # (e.g. under R CMD CHECK where only an installed package is present).
   pkg_path <- normalizePath("../..", winslash = "/")
-  
+  old_val <- Sys.getenv("PLOTLYCSV_PKG_PATH", unset = NA_character_)
+  Sys.setenv(PLOTLYCSV_PKG_PATH = pkg_path)
+  on.exit({
+    if (is.na(old_val)) Sys.unsetenv("PLOTLYCSV_PKG_PATH")
+    else Sys.setenv(PLOTLYCSV_PKG_PATH = old_val)
+  }, add = TRUE)
+
   qmd_content <- c(
     "---",
     "title: \"Test Plotly CSV\"",
@@ -27,7 +34,12 @@ test_that("plotlycsv works in a rendered Quarto document", {
     "---",
     "",
     "```{r setup, message=FALSE, echo=FALSE}",
-    paste0("pkgload::load_all(", shQuote(pkg_path), ")"),
+    "pkg_path <- Sys.getenv('PLOTLYCSV_PKG_PATH', unset = NA)",
+    "if (!is.na(pkg_path) && nzchar(pkg_path) && file.exists(file.path(pkg_path, 'R'))) {",
+    "  pkgload::load_all(pkg_path, quiet = TRUE)",
+    "} else {",
+    "  library(plotlycsv)",
+    "}",
     "library(plotly)",
     "use_plotly_csv(filename = \"global_export.csv\")",
     "```",

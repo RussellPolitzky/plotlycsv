@@ -21,7 +21,7 @@
 #' @param clipboard If `TRUE` (default), also add a "Copy to clipboard"
 #'   modebar button that copies the CSV text to the clipboard.
 #'
-#' @return An [htmltools::tags$script] tag containing the JavaScript payload.
+#' @return An `htmltools::tags$script` tag containing the JavaScript payload.
 #' @export
 #'
 #' @examples

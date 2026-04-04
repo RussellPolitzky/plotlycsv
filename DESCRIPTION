@@ -11,10 +11,10 @@ Description: Adds a custom Plotly modebar button to download the data currently
     Designed for static HTML outputs such as Quarto and R Markdown (no Shiny server required).
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 VignetteBuilder: knitr
 Imports:
-    htmlwidgets
+    htmlwidgets,
+    htmltools
 Suggests:
     plotly,
     ggplot2,

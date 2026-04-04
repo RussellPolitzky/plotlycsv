@@ -23,7 +23,7 @@ execute:
 # PLOTLYCSV_PKG_PATH environment variable so that pkgload::load_all() can
 # find it regardless of the working directory Quarto uses.
 pkg_path <- Sys.getenv("PLOTLYCSV_PKG_PATH", unset = NA)
-if (!is.na(pkg_path) && nzchar(pkg_path)) {
+if (!is.na(pkg_path) && nzchar(pkg_path) && file.exists(file.path(pkg_path, "R"))) {
   pkgload::load_all(pkg_path, quiet = TRUE)
 } else {
   library(plotlycsv)

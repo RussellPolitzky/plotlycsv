@@ -1,2 +1,4 @@
 export(add_plotly_export_csv)
 export(use_plotly_csv)
+importFrom(htmltools,HTML)
+importFrom(htmltools,tags)

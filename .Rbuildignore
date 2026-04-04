@@ -1,1 +1,9 @@
 ^\.quarto$
+^\.claude$
+^CLAUDE\.md$
+^manual_test\.qmd$
+^manual_test\.html$
+^prompts\.txt$
+^install_claude\.ps1$
+^test_repro\.(R|js)$
+^repro\.html$
