@@ -44,6 +44,9 @@ add_plotly_export_csv <- function(
 ) {
   stopifnot(inherits(widget, "htmlwidget"))
 
+  js_str <- function(s) gsub("'", "\\'", s, fixed = TRUE)
+  b      <- function(x) if (x) "true" else "false"
+
   icon_path <- "M150 0h700v100H150z M425 800h150v-400h175L500 150L250 400h175z"
   clip_path <- "M350 0h300v200h200v800H150V200h200z"
 
@@ -91,126 +94,16 @@ add_plotly_export_csv <- function(
   }
 
   # ── onRender JS: attach helper functions to gd ────────────────────────────
-  js_str <- function(s) gsub("'", "\\\\'", s, fixed = TRUE)
+  js_file <- system.file("js/add_plotly_export_csv.js", package = "plotlycsv")
+  js      <- paste(readLines(js_file, warn = FALSE), collapse = "\n")
 
-  js <- sprintf(
-    "function(el, x) {
-  var gd = el.querySelector('.js-plotly-plot');
-  if (!gd) {
-    if (el.classList && el.classList.contains('js-plotly-plot')) gd = el;
-  }
-  if (!gd || !window.Plotly) return;
-
-  var sep = '%s';
-
-  function csvEscape(v){
-    if (v === null || v === undefined) return '';
-    var s = String(v);
-    if (/[\\\",\\n\\r]/.test(s) || s.indexOf(sep) !== -1) {
-      return '\"' + s.replace(/\"/g, '\"\"') + '\"';
-    }
-    return s;
-  }
-  function toRow(arr){ return arr.map(csvEscape).join(sep); }
-
-  function traceIsVisible(tr){
-    if (!tr) return false;
-    if (tr.visible === false) return false;
-    if (tr.visible === 'legendonly') return false;
-    if ((!tr.x || !tr.x.length) && (!tr.y || !tr.y.length)) return false;
-    return true;
-  }
-
-  function axisLabel(gd, axisKey, fallback) {
-    var layout = (gd && gd.layout) || {};
-    var axis   = layout[axisKey] || {};
-    var title  = axis.title;
-    if (!title) return fallback;
-    if (typeof title === 'string') return title || fallback;
-    return title.text || fallback;
-  }
-
-  function tracesToCSV(gd){
-    var xLabel = axisLabel(gd, 'xaxis', 'x');
-    var yLabel = axisLabel(gd, 'yaxis', 'y');
-    var zLabel = axisLabel(gd, 'zaxis', 'z');
-    var header = ['trace_index','trace_name','point_index', xLabel, yLabel%s%s%s];
-    var lines  = [toRow(header)];
-
-    (gd.data || []).forEach(function(tr, ti){
-      if (%s && !traceIsVisible(tr)) return;
-
-      var name = tr.name || '';
-      var xs = Array.isArray(tr.x) ? tr.x : [];
-      var ys = Array.isArray(tr.y) ? tr.y : [];
-      var zs = Array.isArray(tr.z) ? tr.z : [];
-      var ts = Array.isArray(tr.text) ? tr.text : [];
-      var cd = Array.isArray(tr.customdata) ? tr.customdata : [];
-
-      var selected     = tr.selectedpoints;
-      var hasSelection = Array.isArray(selected) && selected.length > 0;
-
-      var n = Math.max(xs.length, ys.length%s%s%s);
-      for (var i = 0; i < n; i++){
-        if (%s && hasSelection && !selected.includes(i)) continue;
-
-        var xi = xs[i] !== undefined && xs[i] !== null ? xs[i] : '';
-        var yi = ys[i] !== undefined && ys[i] !== null ? ys[i] : '';
-        var row = [ti, name, i, xi, yi%s%s%s];
-        lines.push(toRow(row));
-      }
-    });
-
-    return lines.join('\\n');
-  }
-
-  function downloadText(filename, text){
-    var blob = new Blob([text], {type: 'text/csv;charset=utf-8'});
-    var url  = URL.createObjectURL(blob);
-    var a    = document.createElement('a');
-    a.href     = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
-  function copyToClipboard(text){
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text);
-    } else {
-      var ta = document.createElement('textarea');
-      ta.value          = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity  = '0';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      try { document.execCommand('copy'); } catch(e) {}
-      document.body.removeChild(ta);
-    }
-  }
-
-  gd._tracesToCSV     = tracesToCSV;
-  gd._downloadText    = downloadText;
-  gd._copyToClipboard = copyToClipboard;
-  gd._csvFilename     = '%s';
-}",
-    js_str(sep),
-    if (include_z)          ", zLabel"   else "",
-    if (include_text)       ", 'text'"   else "",
-    if (include_customdata) ", 'customdata'" else "",
-    if (visible_only)       "true"       else "false",
-    if (include_z)          ", zs.length" else "",
-    if (include_text)       ", ts.length" else "",
-    if (include_customdata) ", cd.length" else "",
-    if (selected_only)      "true"       else "false",
-    if (include_z)          ",\n          zs[i] !== undefined && zs[i] !== null ? zs[i] : ''" else "",
-    if (include_text)       ",\n          ts[i] !== undefined && ts[i] !== null ? ts[i] : ''" else "",
-    if (include_customdata) ",\n          cd[i] !== undefined && cd[i] !== null ? (Array.isArray(cd[i]) ? cd[i].join('|') : String(cd[i])) : ''" else "",
-    js_str(filename)
-  )
+  js <- gsub("{{SEP}}",               js_str(sep),           js, fixed = TRUE)
+  js <- gsub("{{VISIBLE_ONLY}}",      b(visible_only),       js, fixed = TRUE)
+  js <- gsub("{{INCLUDE_Z}}",         b(include_z),          js, fixed = TRUE)
+  js <- gsub("{{INCLUDE_TEXT}}",      b(include_text),       js, fixed = TRUE)
+  js <- gsub("{{INCLUDE_CUSTOMDATA}}", b(include_customdata), js, fixed = TRUE)
+  js <- gsub("{{SELECTED_ONLY}}",     b(selected_only),      js, fixed = TRUE)
+  js <- gsub("{{FILENAME}}",          js_str(filename),      js, fixed = TRUE)
 
   htmlwidgets::onRender(widget, js)
 }
