@@ -1,16 +1,22 @@
-#' Decorate a plotly htmlwidget with a Modebar "Download CSV" button
+#' Decorate a plotly htmlwidget with CSV export modebar buttons
 #'
-#' Adds a custom Plotly modebar button that downloads the currently-rendered
-#' trace data as a CSV file. This works in static HTML contexts such as Quarto
-#' and R Markdown (no Shiny server required).
+#' Adds a "Download CSV" button and (optionally) a "Copy to Clipboard" button
+#' to the Plotly modebar. Works in static HTML contexts such as Quarto and
+#' R Markdown — no Shiny server required.
 #'
-#' The exported CSV is based on `gd.data` (Plotly traces) available in the
-#' browser at render time, i.e. what the plotly widget is drawing.
+#' Column headers in the exported CSV are derived from the plot's axis titles
+#' when available, falling back to `"x"`, `"y"`, and `"z"`.
 #'
-#' @param widget A plotly htmlwidget (e.g. from [plotly::ggplotly()] or [plotly::plot_ly()]).
-#' @param filename Filename suggested to the browser for the downloaded CSV.
-#' @param selected_only If `TRUE`, export only points currently selected on the chart.
-#' @param sep Character used as the field separator (default: `","`).
+#' @param widget A plotly htmlwidget (e.g. from [plotly::ggplotly()] or
+#'   [plotly::plot_ly()]).
+#' @param filename Filename suggested to the browser for the download.
+#' @param visible_only If `TRUE` (default), skip hidden / `"legendonly"` traces.
+#' @param include_text If `TRUE` (default), include the trace `text` field.
+#' @param include_z If `TRUE`, include the `z` axis data.
+#' @param include_customdata If `TRUE`, include the trace `customdata` field.
+#' @param selected_only If `TRUE`, export only currently-selected points.
+#' @param sep Field separator character (default `","`).
+#' @param clipboard If `TRUE` (default), also add a "Copy to clipboard" button.
 #'
 #' @return The modified widget.
 #' @export
@@ -19,7 +25,6 @@
 #' if (requireNamespace("ggplot2", quietly = TRUE) &&
 #'     requireNamespace("plotly", quietly = TRUE)) {
 #'   library(ggplot2)
-
 #'   library(plotly)
 #'
 #'   p <- ggplot(mtcars, aes(wt, mpg, colour = factor(cyl))) + geom_point()
@@ -28,46 +33,64 @@
 #' }
 add_plotly_export_csv <- function(
   widget,
-  filename = "plotly-data.csv",
-  visible_only = TRUE,
-  include_text = TRUE,
-  include_z = FALSE,
+  filename         = "plotly-data.csv",
+  visible_only     = TRUE,
+  include_text     = TRUE,
+  include_z        = FALSE,
   include_customdata = FALSE,
-  selected_only = FALSE,
-  sep = ","
+  selected_only    = FALSE,
+  sep              = ",",
+  clipboard        = TRUE
 ) {
   stopifnot(inherits(widget, "htmlwidget"))
 
+  icon_path <- "M150 0h700v100H150z M425 800h150v-400h175L500 150L250 400h175z"
+  clip_path <- "M350 0h300v200h200v800H150V200h200z"
 
-  # Register a custom button in the Plotly modebar
-  # Using a standard "disk" icon SVG path
-  button <- list(
-    name = "Download CSV",
+  # ── Download CSV button ────────────────────────────────────────────────────
+  dl_button <- list(
+    name  = "Download CSV",
     title = "Download data currently visible in the chart as a CSV file",
-    icon = list(
-      width = 1000,
-      ascent = 850,
-      descent = -150,
-      path = "M150 0h700v100H150z M425 800h150v-400h175L500 150L250 400h175z"
-    ),
-    click = htmlwidgets::JS("function(gd) { if (gd._downloadText) gd._downloadText(gd._csvFilename, gd._tracesToCSV(gd)); }")
+    icon  = list(width = 1000, ascent = 850, descent = -150, path = icon_path),
+    click = htmlwidgets::JS(
+      "function(gd) { if (gd._downloadText) gd._downloadText(gd._csvFilename, gd._tracesToCSV(gd)); }"
+    )
   )
 
-  # Initialize config if missing and add button
+  # ── Copy-to-clipboard button ───────────────────────────────────────────────
+  cp_button <- list(
+    name  = "Copy CSV",
+    title = "Copy data as CSV to clipboard",
+    icon  = list(width = 1000, ascent = 850, descent = -150, path = clip_path),
+    click = htmlwidgets::JS(
+      "function(gd) { if (gd._copyToClipboard) gd._copyToClipboard(gd._tracesToCSV(gd)); }"
+    )
+  )
+
+  # ── Add buttons to widget config (guard against duplicates) ───────────────
   if (is.null(widget$x$config)) widget$x$config <- list()
-  
-  # Avoid duplicate buttons if the function is called multiple times on the same widget
+
   current_buttons <- widget$x$config$modeBarButtonsToAdd
   button_names <- if (is.list(current_buttons)) {
-    vapply(current_buttons, function(b) if (is.list(b) && !is.null(b$name)) b$name else "", character(1))
+    vapply(current_buttons,
+           function(b) if (is.list(b) && !is.null(b$name)) b$name else "",
+           character(1))
   } else {
     character(0)
   }
-  
+
   if (!("Download CSV" %in% button_names)) {
-    widget$x$config$modeBarButtonsToAdd <- c(current_buttons, list(button))
+    widget$x$config$modeBarButtonsToAdd <- c(
+      widget$x$config$modeBarButtonsToAdd, list(dl_button)
+    )
+  }
+  if (clipboard && !("Copy CSV" %in% button_names)) {
+    widget$x$config$modeBarButtonsToAdd <- c(
+      widget$x$config$modeBarButtonsToAdd, list(cp_button)
+    )
   }
 
+  # ── onRender JS: attach helper functions to gd ────────────────────────────
   js_str <- function(s) gsub("'", "\\\\'", s, fixed = TRUE)
 
   js <- sprintf(
@@ -98,9 +121,21 @@ add_plotly_export_csv <- function(
     return true;
   }
 
+  function axisLabel(gd, axisKey, fallback) {
+    var layout = (gd && gd.layout) || {};
+    var axis   = layout[axisKey] || {};
+    var title  = axis.title;
+    if (!title) return fallback;
+    if (typeof title === 'string') return title || fallback;
+    return title.text || fallback;
+  }
+
   function tracesToCSV(gd){
-    var header = ['trace_index','trace_name','point_index','x','y'%s%s%s];
-    var lines = [toRow(header)];
+    var xLabel = axisLabel(gd, 'xaxis', 'x');
+    var yLabel = axisLabel(gd, 'yaxis', 'y');
+    var zLabel = axisLabel(gd, 'zaxis', 'z');
+    var header = ['trace_index','trace_name','point_index', xLabel, yLabel%s%s%s];
+    var lines  = [toRow(header)];
 
     (gd.data || []).forEach(function(tr, ti){
       if (%s && !traceIsVisible(tr)) return;
@@ -111,8 +146,8 @@ add_plotly_export_csv <- function(
       var zs = Array.isArray(tr.z) ? tr.z : [];
       var ts = Array.isArray(tr.text) ? tr.text : [];
       var cd = Array.isArray(tr.customdata) ? tr.customdata : [];
-      
-      var selected = tr.selectedpoints;
+
+      var selected     = tr.selectedpoints;
       var hasSelection = Array.isArray(selected) && selected.length > 0;
 
       var n = Math.max(xs.length, ys.length%s%s%s);
@@ -131,9 +166,9 @@ add_plotly_export_csv <- function(
 
   function downloadText(filename, text){
     var blob = new Blob([text], {type: 'text/csv;charset=utf-8'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
+    var url  = URL.createObjectURL(blob);
+    var a    = document.createElement('a');
+    a.href     = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
@@ -141,22 +176,39 @@ add_plotly_export_csv <- function(
     URL.revokeObjectURL(url);
   }
 
-  gd._tracesToCSV = tracesToCSV;
-  gd._downloadText = downloadText;
-  gd._csvFilename = '%s';
+  function copyToClipboard(text){
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value          = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity  = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      document.body.removeChild(ta);
+    }
+  }
+
+  gd._tracesToCSV     = tracesToCSV;
+  gd._downloadText    = downloadText;
+  gd._copyToClipboard = copyToClipboard;
+  gd._csvFilename     = '%s';
 }",
     js_str(sep),
-    if (include_z) ", 'z'" else "",
-    if (include_text) ", 'text'" else "",
+    if (include_z)          ", zLabel"   else "",
+    if (include_text)       ", 'text'"   else "",
     if (include_customdata) ", 'customdata'" else "",
-    if (visible_only) "true" else "false",
-    if (include_z) ", zs.length" else "",
-    if (include_text) ", ts.length" else "",
+    if (visible_only)       "true"       else "false",
+    if (include_z)          ", zs.length" else "",
+    if (include_text)       ", ts.length" else "",
     if (include_customdata) ", cd.length" else "",
-    if (selected_only) "true" else "false",
-    if (include_z) ",\n          zs[i] !== undefined && zs[i] !== null ? zs[i] : ''" else "",
-    if (include_text) ",\n          ts[i] !== undefined && ts[i] !== null ? ts[i] : ''" else "",
-    if (include_customdata) ",\n          cd[i] !== undefined && cd[i] !== null ? cd[i] : ''" else "",
+    if (selected_only)      "true"       else "false",
+    if (include_z)          ",\n          zs[i] !== undefined && zs[i] !== null ? zs[i] : ''" else "",
+    if (include_text)       ",\n          ts[i] !== undefined && ts[i] !== null ? ts[i] : ''" else "",
+    if (include_customdata) ",\n          cd[i] !== undefined && cd[i] !== null ? (Array.isArray(cd[i]) ? cd[i].join('|') : String(cd[i])) : ''" else "",
     js_str(filename)
   )
 

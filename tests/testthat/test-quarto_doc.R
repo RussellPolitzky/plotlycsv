@@ -318,12 +318,12 @@ test_that("Quarto-rendered plots have _tracesToCSV attached in the browser", {
       "rows (one per mtcars observation); got", nrow(df)
     )
   )
+  # Column headers are now derived from axis titles via axisLabel(); the
+  # generic fallbacks 'x'/'y' are only used when no axis title is set.
+  # Check that at least 5 columns are present (trace_index, trace_name,
+  # point_index, x-axis, y-axis) rather than hard-coding 'x'/'y'.
   expect_true(
-    "x" %in% names(df),
-    label = "CSV must have an 'x' column"
-  )
-  expect_true(
-    "y" %in% names(df),
-    label = "CSV must have a 'y' column"
+    ncol(df) >= 5,
+    label = paste("CSV must have at least 5 columns (got", ncol(df), ")")
   )
 })
