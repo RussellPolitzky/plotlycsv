@@ -4,7 +4,7 @@ Title: Export Plotly Trace Data to CSV in Static HTML (Quarto/R Markdown)
 Version: 0.3.0
 Authors@R: c(
     person(given = "Russell", family = "Politzky", role = c("aut", "cre"),
-           email = "russell.politzky@firstrand.co.za")
+           email = "russell.politzky@gmail.com")
     )
 Description: Adds a custom Plotly modebar button to download the data currently
     rendered in a plotly htmlwidget (including ggplotly output) as a CSV file.
